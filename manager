@@ -1,0 +1,141 @@
+#!/bin/bash
+#author: Leo / le0nard01
+#date: 01/03/16 {dd/mm/yy}
+#version 1.1
+#LICENSE: GNU GENERAL PUBLIC LICENSE
+
+Change_Color () {
+	color="\e[0m"
+	divide=$[( $2 / 4 )]
+	nice1_div=$[( $divide * 2 - 5 )]
+	nice2_div=$[( $divide * 2 + 5 )]
+
+	cold1_div=$[( $divide * 2 - 4 )]
+	cold2_div=$[( $divide )]
+
+	hot1_div=$[( $divide * 2 + 4 )]
+	hot2_div=$[( $divide * 3 )]
+	hot3_div=$[( $divide * 4 - 5 )]
+
+	#echo $1 $2 $nice1_div $nice2_div $cold1_div $cold2_div $hot2_div $hot1_div
+
+	if [[ "$1" > $nice1_div && "$1" < $nice2_div ]]; then
+		color="\e[92;1m"
+
+	elif [[ "$1" < $cold1_div ]]; then
+		if [[ "$1" < $cold2_div ]]; then
+			color="\e[89;104;1m"
+		else
+			color="\e[36;1m"
+		fi
+
+	elif [[ "$1" > $hot1_div ]]; then
+		if [[ "$1" > $hot2_div ]]; then
+			if [[ "$1" > $hot3_div ]]; then
+				color="\e[89;101;1m"
+			else
+				color="\e[91;1m"
+			fi
+		else
+			color="\e[93;1m"
+		fi
+	fi
+}
+
+
+Show_info () {
+
+	vet_core=()
+	vet_temp=()
+	vet_htemp=()
+	vet_etemp=()
+	cpu_mhz=() 
+	model_name=$(cat /proc/cpuinfo | grep "model name" | head -n 1 | cut -b 14-)
+
+	cores=$(sensors coretemp-isa-0000 -A  | grep Core | cut -b 6)
+	temps=$(sensors coretemp-isa-0000 -A  | grep Core | cut -b 18-19)
+	htemps=$(sensors coretemp-isa-0000 -A | grep Core | cut -b 35-36)
+	etemps=$(sensors coretemp-isa-0000 -A | grep Core | cut -b 51-53)
+	for i in $cores; do 
+		vet_core+=($i);
+	done
+
+	for i in $temps; do 
+		vet_temp+=($i); 
+	done
+
+	for i in $htemps; do 
+		vet_htemp+=($i); 
+	done
+
+	for i in $etemps; do 
+		vet_etemp+=($i); 
+	done
+
+	vetorlen=${#vet_core[*]}
+	Reset 0 6
+	vetorlen=$[($vetorlen-1)]
+
+	for i in $( seq 0 $vetorlen); do 
+		x1=$(cat /sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq)
+		x2=$(echo "$x1" | cut -b 1)
+		x3=$(printf "$x2.";echo "$x1" | cut -b 2-3)
+
+		#x2=$(bc -l <<< "$x1 / 1000")		
+		#x3=${x2%00000000000000000}
+
+		cpu_mhz+=($x3)
+	done
+
+	# OUTPUTs FUNCTION {
+
+	m1="\e[97;1m$model_name\e[0m"
+	echo -e "$m1"
+	for i in $( seq 0 $vetorlen); do
+		Change_Color ${vet_temp[$i]} ${vet_htemp[$i]} 
+		#Change_Color 25 ${vet_htemp[$i]} 
+		m1="\e[97;1m$model_name\e[0m"
+		s1="\e[0m""\e[1mCore \e[94m$i\e[0;1m:"
+		s2="$color${vet_temp[$i]}°C\e[0m"
+		s3="\e[36;1m${cpu_mhz[$i]} GHz\e[0m"
+		echo -e "$s1" "" "$s2" "" "$s3"
+	done
+
+	# }
+
+}
+
+Reset () {
+	if [ $1 == "0" ]; then
+		echo -e "\e[0m\033[$2A"
+	fi
+
+	if [ $1 == "1" ]; then
+		for i in $(seq 0 $2); do
+			echo ""
+		done
+	fi
+}
+
+Start_mode () {
+	if [ $1 == "0" ]; then
+		k="0"
+		while true; do
+			Show_info
+			sleep 1
+			k=$[$k+1]
+		done
+	fi
+}
+
+#echo -e "\n\n\n\n"
+Reset 1 4
+p_list=()
+
+if [ $# == "0" ]; then
+	Start_mode 0
+else
+	for i in $(seq 1 $#); do
+		p_list+=($i)
+	done
+fi
